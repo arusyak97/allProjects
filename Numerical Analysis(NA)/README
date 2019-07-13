@@ -1,0 +1,15 @@
+Project: Google PageRank Algorithm
+
+Short Description:
+  Do you know how Google ranks pages? Simple - by using Linear Algebra, and, in particular, matrix eigenvalues.
+  Of course, not of a small-order matrix. The method is called Google PageRank, and is developed by Google
+  founders Sergey Brin and Larry Page while they were graduate students at Stanford. At that time, Brin and
+  Page were 23 and 24 years old, respectively, see https://en.wikipedia.org/wiki/PageRank.
+  There are many other uses of the PageRank Algorithm, such as in bibliometrics, social
+  and information network analysis, Twitter, journal citation ranking, and for quantifying
+  the scientific impact of researchers.
+
+The Project:
+  The aim of the Project will be to develop the simple model for PageRank Algorithm. Mathematically,
+  problems will reduce to numerical eigenvalue and eigenvector calculation, i.e., a solution of a large
+  system of linear equations, and will use some probabilistic methods.
