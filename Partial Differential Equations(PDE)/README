@@ -1,0 +1,21 @@
+Group Project Topic:
+  American Options Pricing
+
+Team: Sona Ghevondyan, Arusyak Hakobyan
+
+Short Description:
+  Options are financial contracts to buy or sell an asset (e.g., stock) at
+  some time spot in the future according to the contract details, see https://en.wikipedia.
+  org/wiki/Option_(finance). Option Pricing models are developed to calculate the value
+  of options at any time prior to maturity. And since these contracts are for the delivery of
+  the underlying asset in the future, one needs to construct a suitable model for the price of
+  that underlying asset.
+  American Options differ from the European Options by allowing to be executed any
+  time before the maturity, see https://en.wikipedia.org/wiki/Option_style. The Mathematical
+  model for the pricing of American Options reduces to a so-called Obstacle problem,
+  which is a Partial Differential Equation in an unknown domain, and an additional information
+  is known to construct the domain and solution simultaneously. Unfortunately, no
+  analytic solution is known for this problem, so one uses Numerical Analysis to calculate
+  the price.
+  The aim of the Project will be to study Obstacle Problems, and to solve the American
+  Option Pricing problem by numerical methods.
