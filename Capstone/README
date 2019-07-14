@@ -1,0 +1,5 @@
+Short Description:
+  This paper discusses time series forecasting, specifically, stock price prediction using neural
+  networks. We come up with two neural network architectural solutions, one being convolutional neural
+  networks and another being LSTM. In the end, we present the comparison of results, suggest future plans
+  and provides Python implementations.
