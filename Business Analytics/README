@@ -1,0 +1,7 @@
+Short Description:
+  This paper discusses time series forecasting, specifically stock price prediction by using
+  methods such as moving average, ARIMA, and LSTM. It explains what is time series, then what
+  is financial analysis and why it matters to be able to predict the stock price in the next time
+  period. We first give an introduction to all methods, in brief, to prepare the ground for the topics
+  discussed in this paper. Then we consider their applications, provide in-depth explanations, and
+  compare the results.
