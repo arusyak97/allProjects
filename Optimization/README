@@ -1,0 +1,6 @@
+Project: Optimization Algorithms for Neural Networks
+
+Short Description:
+  The aim of the project will be study some state of the art optimization algorithms used for NN training.
+  In particular, the project will study Nesterov accelerated gradient, AdaGrad, RMSprop and Adam
+  optimization algorithms.
