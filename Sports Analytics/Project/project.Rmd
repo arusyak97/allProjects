@@ -1,0 +1,233 @@
+---
+title: "Individual Project: Modeling with NHL Power Play Data"
+author: "Arusyak Hakobyan"
+date: "December 5, 2018"
+output:
+  html_document:
+    code_folding: hide
+  pdf_document: default
+---
+
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
+options(knitr.table.format = 'html') # For the html tables
+```
+
+Imagine watching NHL team and they draw a powerplay, we think ice is free with the missing player and it will be easier to score. But how important is this seemingly advantageous situation in the NHL?  
+
+## Setup
+<hr >
+
+Loading some useful packages for analysis and plotting:
+
+```{r packages, message=F, warning=F}
+library(tidyverse)
+library(RCurl)
+library(broom)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+```
+
+Firstly, let's analyze the NHL regular-season over the past eleven years (2007-2018) on the standard 4 vs. 5 power play.  The data was retrieved from [Corsica](http://www.corsica.hockey/team_stats/).
+
+```{r data}
+data4v5 <- read.csv("nhl_data.csv")
+```
+
+Let's load the data and make sure that entries of the Atlanta Thrashers and the Winnipeg Jets are combined, as the Thrashers moved to Winnipeg after the 2011 season. Thus, the Thrashers and the Jets are considered the same team here.  
+
+```{r cleanup}
+# Combine ATL and WPG as ATL.WPG
+data4v5$Team <- plyr::revalue(data4v5$Team, c(ATL = 'ATL.WPG', WPG = 'ATL.WPG'))
+```
+
+For more interpretable regression model coefficents, let us represent the year as a continuous variable. This way an increase of one year is equivalent to one year of hockey played.
+
+```{r year, warning=F}
+data4v5 <- data4v5 %>% 
+            separate(Season, c('StartYear', 'EndYear'), sep = '-', remove = F) %>%
+            mutate_at(c('StartYear', 'EndYear'), funs(as.numeric))
+```
+
+Next, we sort teams by NHL team division following the 2013-2014 realignment scheme. 
+
+```{r div}
+# Initialize variables for storing team names
+pacific <- c('S.J', 'CGY', 'L.A', 'ANA', 'EDM', 'VAN', 'ARI')
+central <- c('ATL.WPG', 'NSH', 'STL', 'DAL', 'COL', 'MIN', 'CHI')
+metropolitan <- c('WSH', 'N.J', 'PHI', 'CBJ', 'PIT', 'NYR', 'NYI', 'CAR')
+atlantic <- c('T.B', 'BOS', 'TOR', 'DET', 'MTL', 'FLA', 'OTT', 'BUF')
+
+# Create column for identifying each team's division
+data4v5 <- data4v5 %>%
+  mutate(division = case_when(data4v5$Team %in% pacific ~ 'Pacific',
+                              data4v5$Team %in% central ~ 'Central',
+                              data4v5$Team %in% metropolitan ~ 'Metropolitan',
+                              data4v5$Team %in% atlantic ~ 'Atlantic'))
+```
+
+See the table detailing the 2013 realignment:
+
+```{r divTable}
+# Creates the data frame for html table
+divisions <- data.frame(Pacific = c(pacific, ''),
+                        Central = c(central, ''),
+                        Metropolitan = metropolitan,
+                        Atlantic = atlantic)
+
+# Prints table
+kable(divisions) %>%
+  kable_styling(bootstrap_options = c('striped', 'hover', 'responsive'))
+```
+
+## Data Exploration
+<hr>
+
+Before going into analysis, let us first explore the data via various graphs.
+Try to see if the amount of standard 4 vs. 5 regular season power play goals are changing over time across 11 years in the NHL
+
+```{r vis1, warning=F}
+ggplot(data4v5, aes(StartYear, GF, group = 1)) +
+  geom_line(aes(group = Team, color = division), alpha = 2/3) + 
+  geom_line(stat = 'summary', fun.y = 'mean', size = .9, color = 'red') +
+  scale_color_brewer(palette = 'Blues', direction = -1) +
+  labs(x = 'Season (Start Year)',
+       y = 'Total Season Power Play Goals (4v5)',
+       caption = 'Each team is a separate line; red line is the average') +
+  ggtitle("Total Season PPGs vs Season") +
+  guides(color = guide_legend(title = 'Division')) +
+  scale_x_continuous(limits = c(2007, 2017), breaks = c(2007:2017)) +
+  theme_minimal()
+```
+
+The plot shows a dramatic decrease in power play goals during the 2012-2013 season. This is a result of the shortened season, which would greatly reduce the amount of powerplay goal attempts, due to the 2012-2013 NHL lockout.
+
+For controling this shortended season, let us divide the powerplay goals by the amount of games played per season:
+
+```{r vis2, warning=F}
+ggplot(data4v5, aes(StartYear, GF/GP, group = 1)) +
+  geom_line(aes(group = Team, color = division), alpha = 2/3) + 
+  geom_line(stat = 'summary', fun.y = 'mean', size = .9, color = 'red') +
+  scale_color_brewer(palette = 'Blues', direction = -1) +
+  labs(x = 'Season (Start Year)',
+       y = 'Total Season Power Play Goals/Games Played (4v5)',
+       caption = 'Each team - separate line; red line - the average') +
+  ggtitle("Total Season PPGs vs Season(shortended season controlled)") + 
+  guides(color = guide_legend(title = 'Division')) +
+  scale_x_continuous(limits = c(2007, 2017), breaks = c(2007:2017)) +
+  theme_minimal()
+```
+
+Now having controlled the number of games played per season, we can see that there seems to be a stable average powerplay goals scored per season for each subsequent year of the play.
+
+For observing this in details, plot these data using boxplot and an average trend line:
+
+```{r vis3}
+boxplot <- ggplot(data4v5, aes(factor(StartYear), GF/GP, group = StartYear)) +
+  geom_boxplot() +
+  labs(x = 'Season (Start Year)',
+       y = 'Total Season Power Play Goals/Games Played (4v5)',
+       caption = ' ') +
+  ggtitle("Boxplot") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+data4v5_sum <- data4v5 %>% 
+  group_by(StartYear) %>% 
+  summarise(mean = mean(GF/GP),
+            sd = mean(GF/GP),
+            n = n(),
+            sem = sd/sqrt(n))
+
+lineplot <- ggplot(data4v5_sum, aes(factor(StartYear), mean, group = 1)) +
+  geom_line(alpha = 1/3) +
+  geom_pointrange(aes(ymax = mean + sem, ymin = mean - sem)) +
+  labs(x = 'Season (Start Year)', caption = 'Error bars are SEM') +
+  ggtitle("LinePlot") +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.text.x = element_text(angle = 30, hjust = 1))
+
+  
+grid.arrange(boxplot, lineplot, ncol = 2)
+```
+
+
+
+We now see each team's power play performance controlled for the games played that season. Above plot demnstrates stable rate, that is clode to 0.07 in power play goals across time. Let's model it with a linear regression, which predicts the total season power play goals controlled for games played as a function of time/season.
+  
+```{r lm}
+# Linearly model this relationship between power play goals/game and season
+mod <- lm((GF/GP) ~ factor(Season), data = data4v5)
+summary(mod) # Very significant negative trend over time
+```
+
+As the regression model and coefficients show, power play goals are changing slightly with each successive season. Plot this stable trend in blue to see more clearly.
+
+```{r decade-nhl-power-play-decrease, warning=F}
+ggplot(data4v5, aes(StartYear, GF/GP, group = 1)) +
+  geom_line(aes(group = Team, color = division), alpha = 2/3) + 
+  geom_line(stat = 'summary', fun.y = 'mean', size = .9, color = 'red') +
+  scale_color_brewer(palette = 'Blues', direction = -1) +
+  xlab('Season') +
+  ylab('Total Season Power Play Goals/Games Played (4v5)') +
+  ggtitle("PG Stable Linear Trend Over Time") +
+  stat_smooth(method = 'lm', col = 'blue', se = F) +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1)) +
+  theme_minimal()
+```
+
+
+
+Each team is going to be modeled individually using a linear regression for predicting powerplay goals per games played as a function of time (across 11 years). There are 30 teams and thus 30 distinct linear regressions will be performed, that is one for each team in the NHL.
+
+We'll use _R^2^_ statistics to examine all 30 regression models simultaneously. These will allow us to account for the variability of power plays within each team.
+
+```{r level_fig1, warning=F}
+modTeam <-  data4v5 %>% 
+            group_by(Team) %>%
+            do(level = lm((GF/GP) ~ StartYear, data = .))
+
+statistics <- modTeam %>% glance(level) %>% mutate(sig = p.value < .05)
+
+sigColorPal <- brewer.pal(11,'RdGy')
+
+ggplot(statistics, aes(r.squared, reorder(Team, r.squared), color = sig)) +
+  geom_point(size = 2) +
+  scale_color_manual(values = sigColorPal[c(9,2)]) +
+  labs(x = 'R-squared', y = 'Team') +
+  ggtitle("R^2 Plot") +
+  guides(color = guide_legend(title = 'p < .05')) +
+  theme_minimal()
+```
+
+
+```{r level_3}
+# Extracting coefficients
+levelCoef <- modTeam %>% 
+              tidy(level) %>% 
+              filter(term == 'StartYear') %>%   # Facilitates plotting
+              mutate(sig = p.value < .05)       # For later plotting
+```
+
+Now let's plot these coefficients ordered by size:
+
+```{r level_3fig, warning=F}
+xax.lock <- c(-.05, .05)
+ggplot(levelCoef, aes(estimate, reorder(Team, -1*estimate), color = sig)) +
+  geom_point(size = 2) +
+  geom_errorbarh(aes(xmin = estimate - std.error, 
+                     xmax = estimate + std.error),
+                 alpha = 1/2) +
+  scale_color_manual(values = sigColorPal[c(9,2)]) +
+  coord_cartesian(xlim = xax.lock) +
+  labs(x = 'Estimate (Yearly Change in Power Play Goals/Game)', 
+       y = 'Team',
+       caption = 'SEM error bars') +
+  guides(color = guide_legend(title = 'p < .05')) +
+  theme_minimal()
+```
+
+As the graph above illustrates each team had a different predicted rate of change in powerplay goals per games. The x-axis represent the regression coefficient of time. For example, the Arizona Coyotes has an estimate close to 0.015. This means that for every increase in 1 year (every season) the model predicted a decrease of -0.015 powerplay goals per games played. This estimate is colored grey, which means it was not found to be significantly different from zero.
