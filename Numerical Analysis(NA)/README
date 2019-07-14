@@ -1,4 +1,8 @@
-Project: Google PageRank Algorithm
+Group Project Topic:
+  Google PageRank Algorithm
+
+Team:
+  Vahan Melkonyan, Vahagn Khachatryan, Arusyak Hakobyan
 
 Short Description:
   Do you know how Google ranks pages? Simple - by using Linear Algebra, and, in particular, matrix eigenvalues.
